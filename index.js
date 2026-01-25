@@ -1,3 +1,4 @@
+// index.js
 const express = require('express');
 const axios = require('axios');
 const fs = require('fs');
@@ -39,6 +40,7 @@ function sleep(ms) {
 // ===============================
 let bins = [];
 let toilets = [];
+let storesFile = []; // ✅ 파일 기반 store
 
 try {
   const dataDir = path.resolve(__dirname, 'data');
@@ -50,14 +52,21 @@ try {
     fs.readFileSync(path.join(dataDir, 'toilets.normalized.json'), 'utf-8')
   );
 
+  // ✅ stores.normalized.json 로딩
+  storesFile = JSON.parse(
+    fs.readFileSync(path.join(dataDir, 'stores.normalized.json'), 'utf-8')
+  );
+
   console.log('bins:', bins.length);
   console.log('toilets:', toilets.length);
+  console.log('stores(file):', storesFile.length);
 } catch (e) {
   console.error('[POI] Failed to load data files. Check server/data/*.json');
   console.error(e.message);
 }
 
-const POIS = [...bins, ...toilets];
+// ✅ 전체 POIs
+const POIS = [...bins, ...toilets, ...storesFile];
 
 // ===============================
 // ✅ 유틸: haversine (meters)
@@ -183,8 +192,7 @@ function getOrsDistanceM(geojson) {
 
 // ===============================
 // ✅ 서비스 지역(bbox) 자동 구성
-//   - POI 전체의 bbox를 만들고, marginDeg 만큼 여유를 둠
-//   - start가 bbox 밖이면 서비스 불가 처리
+//   - (중요) stores 포함하면 bbox가 커질 수 있으니 bins+toilets 기준으로 계산
 // ===============================
 function computeBBox(points) {
   let minLat = Infinity,
@@ -200,9 +208,7 @@ function computeBBox(points) {
     maxLng = Math.max(maxLng, p.lng);
   }
 
-  if (!Number.isFinite(minLat)) {
-    return null;
-  }
+  if (!Number.isFinite(minLat)) return null;
   return { minLat, maxLat, minLng, maxLng };
 }
 
@@ -226,7 +232,7 @@ function inBBox(pt, bbox) {
 
 const SERVICE_AREA = (() => {
   const marginDeg = 0.03; // 약 3km 내외(위도 기준) 여유
-  const bbox0 = computeBBox(POIS);
+  const bbox0 = computeBBox([...bins, ...toilets]); // ✅ stores 제외
   if (!bbox0) return null;
   const bbox = expandBBox(bbox0, marginDeg);
   console.log('[SERVICE_AREA] bbox:', bbox, 'marginDeg:', marginDeg);
@@ -303,6 +309,7 @@ app.get('/', (req, res) => {
     poi_counts: {
       bins: bins.length,
       toilets: toilets.length,
+      stores: storesFile.length,
       total: POIS.length,
     },
     service_area: SERVICE_AREA || null,
@@ -379,7 +386,7 @@ app.post('/api/ors/walking', async (req, res) => {
 //  - toilet 1개 이상 필수
 //  - storeRequested면 3개 중 1개 슬롯은 "store 우선" 시도
 //  - bin은 있으면 좋음(soft)
-//  - 핵심: start-distance band 강제해서 폭주 막음
+//  - start-distance band 강제해서 폭주 막음
 //  - 서비스 지역 밖이면 차단(프론트 팝업용 에러)
 // ===============================
 app.post('/api/course/recommend', async (req, res) => {
@@ -399,7 +406,7 @@ app.post('/api/course/recommend', async (req, res) => {
       toleranceRatio,
       maxOrsCalls,
       include,
-      stores,
+      stores, // (요청으로 들어와도 무시: 운영 데이터는 파일 기준)
       debug,
     } = req.body || {};
     const DEBUG = !!debug;
@@ -432,7 +439,9 @@ app.post('/api/course/recommend', async (req, res) => {
       });
     }
 
-    const L = Number(targetKm) * 1000;
+    // ✅ (수정) targetKm 기본값 제공
+    const km = Number.isFinite(Number(targetKm)) ? Number(targetKm) : 5;
+    const L = km * 1000;
     if (!Number.isFinite(L) || L <= 0) {
       return res.status(400).json({
         error: 'INVALID_REQUEST',
@@ -453,11 +462,11 @@ app.post('/api/course/recommend', async (req, res) => {
 
     const r = Number.isFinite(Number(radiusM)) ? Number(radiusM) : 4500;
 
-    const wantToilet = true; // ✅ 최소 1개는 반드시 포함(정책 고정)
     const storeRequested = !!include?.store;
 
-    const storePool = Array.isArray(stores) ? stores : [];
-    const POOL = [...POIS, ...storePool];
+    // ✅ store는 request가 아니라 파일(stores.normalized.json) 기반으로 사용
+    const storePool = Array.isArray(storesFile) ? storesFile : [];
+    const POOL = [...POIS];
 
     // ✅ start에서 너무 가까운 POI는 제외
     const minStartDistM = Math.min(900, Math.max(350, 0.12 * L)); // 5km면 ~600
@@ -472,32 +481,43 @@ app.post('/api/course/recommend', async (req, res) => {
     const attemptsPerOffset = 6;
     const nearMissMaxRatio = 0.40;
 
+    // ✅ (수정) ORS 호출 횟수는 "실제로 ORS 호출했을 때만" 증가
     let orsCallsUsed = 0;
+    async function orsLoopGeojsonCounted(startPt0, waypoints0) {
+      if (orsCallsUsed >= maxCalls) {
+        const e = new Error('ORS_CALL_LIMIT_REACHED');
+        e.code = 'ORS_CALL_LIMIT_REACHED';
+        throw e;
+      }
+      orsCallsUsed += 1;
+      return orsLoopGeojson(startPt0, waypoints0, apiKey);
+    }
+
     const usedGlobal = new Set();
     const courses = [];
     const bestNearMiss = [];
 
-    // ✅ (핵심) storeRequested면, 3개 슬롯 중 1개는 store 우선 슬롯으로 지정
-    // 코스/시도마다 위치를 바꿔 다양성 확보
+    // ✅ storeRequested면, 3개 슬롯 중 1개는 store 우선 슬롯
     function getStoreSlot(courseIndex, attemptIndex) {
       if (!storeRequested) return -1;
       return (courseIndex + attemptIndex) % 3; // 0/1/2 중 하나
     }
 
-    // 나머지(기본) 선호 순서: toilet 우선, 그 다음 bin, 그 다음 store
-    // (store는 “요청 슬롯”에서 우선 시도하므로 기본 슬롯에서는 너무 강제하지 않음)
     function preferenceListDefault() {
       return ['toilet', 'bin', 'store'];
     }
 
-    async function tryBuildCourse(offsetDeg, dStarLocal, courseIndex, attemptIndex) {
+    async function tryBuildCourse(
+      offsetDeg,
+      dStarLocal,
+      courseIndex,
+      attemptIndex
+    ) {
       const bearings = [0 + offsetDeg, 120 + offsetDeg, 240 + offsetDeg];
 
-      // ✅ target 근처 제한
       const maxTargetDistHard = Math.max(500, 0.85 * dStarLocal);
       const maxTargetDistSoft = Math.max(450, 0.60 * dStarLocal);
 
-      // ✅ start-distance band 강제
       const bandMin = Math.max(minStartDistM, 0.65 * dStarLocal);
       const bandMax = Math.min(r, 1.45 * dStarLocal);
 
@@ -519,19 +539,49 @@ app.post('/api/course/recommend', async (req, res) => {
 
         let picked = null;
 
-        // ✅ store 우선 슬롯: store -> toilet -> bin 순으로 시도
+        // ✅ store 우선 슬롯: store -> toilet -> bin
         if (k === storeSlot) {
           picked =
-            pickNearestByType(candidatePool, target, 'store', usedLocal, 240, maxTargetDistSoft) ||
-            pickNearestByType(candidatePool, target, 'toilet', usedLocal, 240, maxTargetDistSoft) ||
-            pickNearestByType(candidatePool, target, 'bin', usedLocal, 240, maxTargetDistHard);
+            pickNearestByType(
+              candidatePool,
+              target,
+              'store',
+              usedLocal,
+              240,
+              maxTargetDistSoft
+            ) ||
+            pickNearestByType(
+              candidatePool,
+              target,
+              'toilet',
+              usedLocal,
+              240,
+              maxTargetDistSoft
+            ) ||
+            pickNearestByType(
+              candidatePool,
+              target,
+              'bin',
+              usedLocal,
+              240,
+              maxTargetDistHard
+            );
         } else {
-          // ✅ 기본 슬롯: toilet 우선, 그 다음 bin, 그 다음 store(있으면)
+          // ✅ 기본 슬롯: toilet -> bin -> store
           const pref = preferenceListDefault();
           for (const t of pref) {
             const maxTarget =
-              t === 'toilet' || t === 'store' ? maxTargetDistSoft : maxTargetDistHard;
-            picked = pickNearestByType(candidatePool, target, t, usedLocal, 240, maxTarget);
+              t === 'toilet' || t === 'store'
+                ? maxTargetDistSoft
+                : maxTargetDistHard;
+            picked = pickNearestByType(
+              candidatePool,
+              target,
+              t,
+              usedLocal,
+              240,
+              maxTarget
+            );
             if (picked) break;
           }
         }
@@ -572,7 +622,8 @@ app.post('/api/course/recommend', async (req, res) => {
         return null;
       }
 
-      const geojson = await orsLoopGeojson(startPt, waypoints, apiKey);
+      // ✅ (수정) 실제 ORS 호출 시에만 카운트 증가
+      const geojson = await orsLoopGeojsonCounted(startPt, waypoints);
       const distM = getOrsDistanceM(geojson);
 
       if (!Number.isFinite(distM)) {
@@ -604,8 +655,13 @@ app.post('/api/course/recommend', async (req, res) => {
         if (courses.length >= 3) break;
         if (orsCallsUsed >= maxCalls) break;
 
-        const built = await tryBuildCourse(offset, dStarLocal, oi, attempt);
-        orsCallsUsed += 1;
+        let built = null;
+        try {
+          built = await tryBuildCourse(offset, dStarLocal, oi, attempt);
+        } catch (e) {
+          if (e?.code === 'ORS_CALL_LIMIT_REACHED') break;
+          throw e;
+        }
 
         if (!built) {
           dStarLocal *= 1.06;
@@ -650,13 +706,13 @@ app.post('/api/course/recommend', async (req, res) => {
           courses.push({
             meta: {
               index: courses.length + 1,
-              targetKm: Number(targetKm),
+              targetKm: km,
               targetDistanceM: Math.round(L),
               totalDistanceM: Math.round(distM),
               toleranceRatio: tol,
               toleranceHit: true,
               radiusM: r,
-              orsCallsUsed,
+              orsCallsUsed, // ✅ 실제 ORS 호출 수
               offsetDeg: offset,
               attempt,
               dStarUsedM: Math.round(dStarLocal),
@@ -679,13 +735,13 @@ app.post('/api/course/recommend', async (req, res) => {
             payload: {
               meta: {
                 index: -1,
-                targetKm: Number(targetKm),
+                targetKm: km,
                 targetDistanceM: Math.round(L),
                 totalDistanceM: Math.round(distM),
                 toleranceRatio: tol,
                 toleranceHit: false,
                 radiusM: r,
-                orsCallsUsed,
+                orsCallsUsed, // ✅ 실제 ORS 호출 수
                 offsetDeg: offset,
                 attempt,
                 dStarUsedM: Math.round(dStarLocal),
@@ -705,7 +761,7 @@ app.post('/api/course/recommend', async (req, res) => {
 
           // ✅ 거리 보정(안정적으로 수렴)
           const scale = Math.sqrt(L / distM);
-          const clamped = Math.max(0.80, Math.min(1.25, scale));
+          const clamped = Math.max(0.8, Math.min(1.25, scale));
           dStarLocal = dStarLocal * clamped;
         }
       }
@@ -733,7 +789,7 @@ app.post('/api/course/recommend', async (req, res) => {
       requested: 3,
       returned: courses.length,
       meta: {
-        targetKm: Number(targetKm),
+        targetKm: km,
         targetDistanceM: Math.round(L),
         toleranceRatio: tol,
         radiusM: r,

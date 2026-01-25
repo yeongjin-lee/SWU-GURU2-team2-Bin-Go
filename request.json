@@ -8,22 +8,6 @@
     "toilet": true,
     "store": true
   },
-  "stores": [
-    {
-      "id": "store:test1",
-      "type": "store",
-      "name": "CU 테스트",
-      "lat": 37.5659,
-      "lng": 126.9772
-    },
-    {
-      "id": "store:test2",
-      "type": "store",
-      "name": "GS25 테스트",
-      "lat": 37.5672,
-      "lng": 126.9801
-    }
-  ],
   "toleranceRatio": 0.2,
   "radiusM": 4500,
   "maxOrsCalls": 8,
