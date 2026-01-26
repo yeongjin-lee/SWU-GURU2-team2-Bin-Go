@@ -6,9 +6,14 @@ const path = require('path');
 require('dotenv').config();
 
 /**
- * ✅ 버전
+ * ✅ 버전: v10
+ * 특징: 
+ * 1. Sector Route (부채꼴) 적용
+ * 2. Slot 1(화장실) 필수
+ * 3. Slot 2(쓰레기통) 우선 검색하되, 없으면 화장실로 대체 (Soft Fallback)
+ * 4. Slot 3(편의점) 선택 시 필수, 미선택 시 화장실
  */
-const VERSION = 'BIN-SOFT-v8-storeSlot-servicearea-toiletRequired-2026-01-25';
+const VERSION = 'BIN-SOFT-v10-binFallback-storeFixed-2026-01-26';
 console.log('[BOOT] running:', __filename);
 console.log('[VERSION]', VERSION);
 
@@ -18,7 +23,7 @@ const PORT = 3000;
 app.use(express.json());
 
 // ===============================
-// ✅ ORS KEY 안전 처리 (개행/공백/따옴표 방지)
+// ✅ ORS KEY 안전 처리
 // ===============================
 function getOrsKey() {
   const raw = process.env.ORS_API_KEY;
@@ -40,7 +45,7 @@ function sleep(ms) {
 // ===============================
 let bins = [];
 let toilets = [];
-let storesFile = []; // ✅ 파일 기반 store
+let storesFile = [];
 
 try {
   const dataDir = path.resolve(__dirname, 'data');
@@ -51,8 +56,6 @@ try {
   toilets = JSON.parse(
     fs.readFileSync(path.join(dataDir, 'toilets.normalized.json'), 'utf-8')
   );
-
-  // ✅ stores.normalized.json 로딩
   storesFile = JSON.parse(
     fs.readFileSync(path.join(dataDir, 'stores.normalized.json'), 'utf-8')
   );
@@ -65,7 +68,6 @@ try {
   console.error(e.message);
 }
 
-// ✅ 전체 POIs
 const POIS = [...bins, ...toilets, ...storesFile];
 
 // ===============================
@@ -74,7 +76,6 @@ const POIS = [...bins, ...toilets, ...storesFile];
 function haversineM(a, b) {
   const R = 6371000;
   const toRad = (d) => (d * Math.PI) / 180;
-
   const dLat = toRad(b.lat - a.lat);
   const dLng = toRad(b.lng - a.lng);
   const lat1 = toRad(a.lat);
@@ -89,14 +90,11 @@ function haversineM(a, b) {
 
 function parseTypes(typesStr) {
   if (!typesStr) return ['toilet', 'bin'];
-  return String(typesStr)
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return String(typesStr).split(',').map((s) => s.trim()).filter(Boolean);
 }
 
 // ===============================
-// ✅ destination point (meters, bearing degrees)
+// ✅ destination point
 // ===============================
 function destinationPoint(start, bearingDeg, distanceM) {
   const R = 6371000;
@@ -110,21 +108,19 @@ function destinationPoint(start, bearingDeg, distanceM) {
 
   const lat2 = Math.asin(
     Math.sin(lat1) * Math.cos(dr) +
-      Math.cos(lat1) * Math.sin(dr) * Math.cos(brng)
+    Math.cos(lat1) * Math.sin(dr) * Math.cos(brng)
   );
 
-  const lng2 =
-    lng1 +
-    Math.atan2(
-      Math.sin(brng) * Math.sin(dr) * Math.cos(lat1),
-      Math.cos(dr) - Math.sin(lat1) * Math.sin(lat2)
-    );
+  const lng2 = lng1 + Math.atan2(
+    Math.sin(brng) * Math.sin(dr) * Math.cos(lat1),
+    Math.cos(dr) - Math.sin(lat1) * Math.sin(lat2)
+  );
 
   return { lat: toDeg(lat2), lng: toDeg(lng2) };
 }
 
 // ===============================
-// ✅ 후보 선택: target 근처에서 type 1개 고르기 (+ 타겟 최대거리 제한)
+// ✅ 후보 선택
 // ===============================
 function pickNearestByType(
   pool,
@@ -146,7 +142,7 @@ function pickNearestByType(
 }
 
 // ===============================
-// ✅ ORS 호출: loop (start + waypoints + start) + 429 백오프
+// ✅ ORS 호출
 // ===============================
 async function orsLoopGeojson(startPt, waypoints, apiKey) {
   const coordinates = [
@@ -155,20 +151,17 @@ async function orsLoopGeojson(startPt, waypoints, apiKey) {
     [startPt.lng, startPt.lat],
   ];
 
-  const url =
-    'https://api.openrouteservice.org/v2/directions/foot-walking/geojson';
-  const body = { coordinates };
+  const url = 'https://api.openrouteservice.org/v2/directions/foot-walking/geojson';
   const headers = { Authorization: apiKey, 'Content-Type': 'application/json' };
 
-  // ✅ 호출 간격(429 완화)
-  await sleep(180);
+  await sleep(180); // rate limit buffer
 
   const retries = 4;
   let backoff = 700;
 
   for (let i = 0; i <= retries; i++) {
     try {
-      const orsResp = await axios.post(url, body, { headers, timeout: 15000 });
+      const orsResp = await axios.post(url, { coordinates }, { headers, timeout: 15000 });
       return orsResp.data;
     } catch (err) {
       const status = err.response?.status;
@@ -191,15 +184,10 @@ function getOrsDistanceM(geojson) {
 }
 
 // ===============================
-// ✅ 서비스 지역(bbox) 자동 구성
-//   - (중요) stores 포함하면 bbox가 커질 수 있으니 bins+toilets 기준으로 계산
+// ✅ 서비스 지역(bbox)
 // ===============================
 function computeBBox(points) {
-  let minLat = Infinity,
-    maxLat = -Infinity,
-    minLng = Infinity,
-    maxLng = -Infinity;
-
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
   for (const p of points) {
     if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) continue;
     minLat = Math.min(minLat, p.lat);
@@ -207,7 +195,6 @@ function computeBBox(points) {
     minLng = Math.min(minLng, p.lng);
     maxLng = Math.max(maxLng, p.lng);
   }
-
   if (!Number.isFinite(minLat)) return null;
   return { minLat, maxLat, minLng, maxLng };
 }
@@ -231,173 +218,32 @@ function inBBox(pt, bbox) {
 }
 
 const SERVICE_AREA = (() => {
-  const marginDeg = 0.03; // 약 3km 내외(위도 기준) 여유
-  const bbox0 = computeBBox([...bins, ...toilets]); // ✅ stores 제외
+  const marginDeg = 0.03;
+  const bbox0 = computeBBox([...bins, ...toilets]);
   if (!bbox0) return null;
   const bbox = expandBBox(bbox0, marginDeg);
-  console.log('[SERVICE_AREA] bbox:', bbox, 'marginDeg:', marginDeg);
+  console.log('[SERVICE_AREA] bbox:', bbox);
   return { bbox, marginDeg };
 })();
-
-// ===============================
-// ✅ 주변 POI 후보 확인용 엔드포인트
-// ===============================
-app.get('/api/poi/nearby', (req, res) => {
-  const lat = Number(req.query.lat);
-  const lng = Number(req.query.lng);
-  const radiusM = Number(req.query.radiusM || 2000);
-  const types = parseTypes(req.query.types);
-
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return res.status(400).json({
-      error: 'INVALID_REQUEST',
-      message:
-        'query로 lat,lng가 필요합니다. 예) /api/poi/nearby?lat=...&lng=...',
-    });
-  }
-
-  if (!Number.isFinite(radiusM) || radiusM <= 0) {
-    return res.status(400).json({
-      error: 'INVALID_REQUEST',
-      message: 'radiusM은 양수 숫자여야 합니다.',
-    });
-  }
-
-  const start = { lat, lng };
-
-  const candidates = POIS.filter((p) => types.includes(p.type))
-    .map((p) => ({
-      ...p,
-      distanceM: Math.round(haversineM(start, p)),
-    }))
-    .filter((p) => p.distanceM <= radiusM)
-    .sort((a, b) => a.distanceM - b.distanceM);
-
-  return res.json({
-    ok: true,
-    version: VERSION,
-    start,
-    radiusM,
-    types,
-    counts: {
-      totalPoisLoaded: POIS.length,
-      candidates: candidates.length,
-    },
-    sample: candidates.slice(0, 20).map((p) => ({
-      id: p.id,
-      type: p.type,
-      name: p.name,
-      lat: p.lat,
-      lng: p.lng,
-      distanceM: p.distanceM,
-    })),
-  });
-});
 
 // ===============================
 // ✅ 서버 헬스체크
 // ===============================
 app.get('/', (req, res) => {
-  const k = getOrsKey();
   res.json({
     ok: true,
     version: VERSION,
-    message: 'SERVER OK - NO DB',
-    running_file: __filename,
-    has_ors_key: !!k,
-    ors_key_length: k?.length || 0,
-    poi_counts: {
-      bins: bins.length,
-      toilets: toilets.length,
-      stores: storesFile.length,
-      total: POIS.length,
-    },
-    service_area: SERVICE_AREA || null,
+    message: 'SERVER OK - Bin Fallback Applied',
   });
 });
 
 // ===============================
-// ✅ ORS 보행자 경로 (GeoJSON)
-// ===============================
-app.post('/api/ors/walking', async (req, res) => {
-  try {
-    const apiKey = getOrsKey();
-    if (!apiKey) {
-      return res.status(500).json({
-        error: 'MISSING_ORS_API_KEY',
-        message: '.env에 ORS_API_KEY가 없습니다',
-      });
-    }
-
-    const { start, end, waypoints } = req.body || {};
-
-    if (
-      !start ||
-      !end ||
-      start.lat == null ||
-      start.lng == null ||
-      end.lat == null ||
-      end.lng == null
-    ) {
-      return res.status(400).json({
-        error: 'INVALID_REQUEST',
-        message: 'start/end (lat,lng)가 필요합니다',
-      });
-    }
-
-    const coordinates = [
-      [Number(start.lng), Number(start.lat)],
-      ...(Array.isArray(waypoints)
-        ? waypoints
-            .filter((p) => p && p.lat != null && p.lng != null)
-            .map((p) => [Number(p.lng), Number(p.lat)])
-        : []),
-      [Number(end.lng), Number(end.lat)],
-    ];
-
-    const orsResp = await axios.post(
-      'https://api.openrouteservice.org/v2/directions/foot-walking/geojson',
-      { coordinates },
-      {
-        headers: {
-          Authorization: apiKey,
-          'Content-Type': 'application/json',
-        },
-        timeout: 15000,
-      }
-    );
-
-    return res.status(orsResp.status).json(orsResp.data);
-  } catch (err) {
-    const status = err.response?.status || 500;
-    const data = err.response?.data || null;
-
-    return res.status(status).json({
-      error: 'ORS_API_FAILED',
-      status,
-      data,
-      message: err.message,
-    });
-  }
-});
-
-// ===============================
-// ✅ 추천 코스 3개
-//  - toilet 1개 이상 필수
-//  - storeRequested면 3개 중 1개 슬롯은 "store 우선" 시도
-//  - bin은 있으면 좋음(soft)
-//  - start-distance band 강제해서 폭주 막음
-//  - 서비스 지역 밖이면 차단(프론트 팝업용 에러)
+// ✅ 추천 코스 생성
 // ===============================
 app.post('/api/course/recommend', async (req, res) => {
   try {
     const apiKey = getOrsKey();
-    if (!apiKey) {
-      return res.status(500).json({
-        error: 'MISSING_ORS_API_KEY',
-        message: '.env에 ORS_API_KEY가 없습니다',
-      });
-    }
+    if (!apiKey) return res.status(500).json({ error: 'MISSING_ORS_API_KEY' });
 
     const {
       start,
@@ -406,7 +252,6 @@ app.post('/api/course/recommend', async (req, res) => {
       toleranceRatio,
       maxOrsCalls,
       include,
-      stores, // (요청으로 들어와도 무시: 운영 데이터는 파일 기준)
       debug,
     } = req.body || {};
     const DEBUG = !!debug;
@@ -419,69 +264,37 @@ app.post('/api/course/recommend', async (req, res) => {
     }
 
     if (!start || start.lat == null || start.lng == null) {
-      return res.status(400).json({
-        error: 'INVALID_REQUEST',
-        message: 'start(lat,lng)가 필요합니다',
-      });
+      return res.status(400).json({ error: 'INVALID_REQUEST' });
     }
 
     const startPt = { lat: Number(start.lat), lng: Number(start.lng) };
 
-    // ✅ 서비스 지역 체크 (서울 데이터만 있을 때 외부 좌표 막기)
     if (SERVICE_AREA?.bbox && !inBBox(startPt, SERVICE_AREA.bbox)) {
       return res.status(400).json({
         error: 'SERVICE_AREA_OUT',
-        version: VERSION,
-        message:
-          '아직 서비스는 서울/수도권(데이터 범위)에서만 지원합니다. 서울에서 다시 시도해주세요.',
+        message: '서비스 지역 밖입니다.',
         service_area: SERVICE_AREA,
-        start: startPt,
       });
     }
 
-    // ✅ (수정) targetKm 기본값 제공
     const km = Number.isFinite(Number(targetKm)) ? Number(targetKm) : 5;
     const L = km * 1000;
-    if (!Number.isFinite(L) || L <= 0) {
-      return res.status(400).json({
-        error: 'INVALID_REQUEST',
-        message: 'targetKm은 양수 숫자여야 합니다',
-      });
-    }
-
-    const tol = Number.isFinite(Number(toleranceRatio))
-      ? Number(toleranceRatio)
-      : 0.12;
-
+    const tol = Number.isFinite(Number(toleranceRatio)) ? Number(toleranceRatio) : 0.12;
     const minL = L * (1 - tol);
     const maxL = L * (1 + tol);
-
-    const maxCalls = Number.isFinite(Number(maxOrsCalls))
-      ? Number(maxOrsCalls)
-      : 18;
-
+    const maxCalls = Number.isFinite(Number(maxOrsCalls)) ? Number(maxOrsCalls) : 18;
     const r = Number.isFinite(Number(radiusM)) ? Number(radiusM) : 4500;
 
     const storeRequested = !!include?.store;
-
-    // ✅ store는 request가 아니라 파일(stores.normalized.json) 기반으로 사용
-    const storePool = Array.isArray(storesFile) ? storesFile : [];
-    const POOL = [...POIS];
-
-    // ✅ start에서 너무 가까운 POI는 제외
-    const minStartDistM = Math.min(900, Math.max(350, 0.12 * L)); // 5km면 ~600
-
-    // 방향 다양화
-    const offsets = [0, 25, 50, 75, 100, 125, 150];
-
-    // ✅ dStar 초기값 과도 방지
-    const approxRadius = Math.max(320, L / (2 * Math.PI)); // 5km면 ~795m
+    
+    // 거리 계산용 상수
+    const minStartDistM = Math.min(900, Math.max(350, 0.12 * L));
+    const offsets = [0, 25, 50, 75, 100, 125, 150]; 
+    const approxRadius = Math.max(320, L / (2 * Math.PI));
     const dStarInit = Math.min(r * 0.75, approxRadius * 1.05);
-
     const attemptsPerOffset = 6;
     const nearMissMaxRatio = 0.40;
 
-    // ✅ (수정) ORS 호출 횟수는 "실제로 ORS 호출했을 때만" 증가
     let orsCallsUsed = 0;
     async function orsLoopGeojsonCounted(startPt0, waypoints0) {
       if (orsCallsUsed >= maxCalls) {
@@ -497,27 +310,20 @@ app.post('/api/course/recommend', async (req, res) => {
     const courses = [];
     const bestNearMiss = [];
 
-    // ✅ storeRequested면, 3개 슬롯 중 1개는 store 우선 슬롯
-    function getStoreSlot(courseIndex, attemptIndex) {
-      if (!storeRequested) return -1;
-      return (courseIndex + attemptIndex) % 3; // 0/1/2 중 하나
-    }
-
-    function preferenceListDefault() {
-      return ['toilet', 'bin', 'store'];
-    }
-
-    async function tryBuildCourse(
-      offsetDeg,
-      dStarLocal,
-      courseIndex,
-      attemptIndex
-    ) {
-      const bearings = [0 + offsetDeg, 120 + offsetDeg, 240 + offsetDeg];
+    // ==========================================
+    // 🚀 코스 생성 로직
+    // ==========================================
+    async function tryBuildCourse(offsetDeg, dStarLocal, courseIndex, attemptIndex) {
+      // 1. 각도: 80도 간격 (부채꼴)
+      const spread = 80;
+      const bearings = [
+        offsetDeg,
+        offsetDeg + spread,
+        offsetDeg + (spread * 2)
+      ];
 
       const maxTargetDistHard = Math.max(500, 0.85 * dStarLocal);
       const maxTargetDistSoft = Math.max(450, 0.60 * dStarLocal);
-
       const bandMin = Math.max(minStartDistM, 0.65 * dStarLocal);
       const bandMax = Math.min(r, 1.45 * dStarLocal);
 
@@ -525,12 +331,9 @@ app.post('/api/course/recommend', async (req, res) => {
       const waypoints = [];
       const waypointTypes = [];
 
-      const storeSlot = getStoreSlot(courseIndex, attemptIndex);
-
       for (let k = 0; k < 3; k++) {
         const target = destinationPoint(startPt, bearings[k], dStarLocal);
-
-        const candidatePool = POOL.filter((p) => {
+        const candidatePool = POIS.filter((p) => {
           if (usedGlobal.has(p.id) || usedLocal.has(p.id)) return false;
           const ds = haversineM(startPt, p);
           if (ds < bandMin || ds > bandMax) return false;
@@ -538,70 +341,47 @@ app.post('/api/course/recommend', async (req, res) => {
         });
 
         let picked = null;
+        let searchTypes = [];
 
-        // ✅ store 우선 슬롯: store -> toilet -> bin
-        if (k === storeSlot) {
-          picked =
-            pickNearestByType(
-              candidatePool,
-              target,
-              'store',
-              usedLocal,
-              240,
-              maxTargetDistSoft
-            ) ||
-            pickNearestByType(
-              candidatePool,
-              target,
-              'toilet',
-              usedLocal,
-              240,
-              maxTargetDistSoft
-            ) ||
-            pickNearestByType(
-              candidatePool,
-              target,
-              'bin',
-              usedLocal,
-              240,
-              maxTargetDistHard
-            );
-        } else {
-          // ✅ 기본 슬롯: toilet -> bin -> store
-          const pref = preferenceListDefault();
-          for (const t of pref) {
-            const maxTarget =
-              t === 'toilet' || t === 'store'
-                ? maxTargetDistSoft
-                : maxTargetDistHard;
-            picked = pickNearestByType(
-              candidatePool,
-              target,
-              t,
-              usedLocal,
-              240,
-              maxTarget
-            );
-            if (picked) break;
+        // 2. 슬롯별 우선순위 결정 (여기가 핵심!)
+        if (k === 0) {
+          // [Slot 1] 화장실 필수 (없으면 Bin이라도)
+          searchTypes = ['toilet', 'bin', 'store'];
+        } 
+        else if (k === 1) {
+          // [Slot 2] 쓰레기통 우선! 
+          // 하지만 없으면 화장실(toilet)로 대체 (Fallback) -> Route 실패 방지
+          searchTypes = ['bin', 'toilet', 'store'];
+        } 
+        else if (k === 2) {
+          // [Slot 3] 편의점 선택 로직
+          if (storeRequested) {
+             // 편의점 요청 시: 오직 편의점만 검색 (강제)
+             searchTypes = ['store']; 
+          } else {
+             // 미요청 시: 화장실 등 자유롭게
+             searchTypes = ['toilet', 'bin', 'store'];
           }
         }
 
+        for (const t of searchTypes) {
+          const maxTarget = (t === 'toilet' || t === 'store') 
+              ? maxTargetDistSoft 
+              : maxTargetDistHard;
+
+          picked = pickNearestByType(
+            candidatePool,
+            target,
+            t,
+            usedLocal,
+            240,
+            maxTarget
+          );
+          if (picked) break; // 찾았으면 선택하고 다음 슬롯으로
+        }
+
         if (!picked) {
-          logDebug({
-            stage: 'pick_failed',
-            offsetDeg,
-            attemptIndex,
-            k,
-            bearing: bearings[k],
-            dStarLocal: Math.round(dStarLocal),
-            bandMinM: Math.round(bandMin),
-            bandMaxM: Math.round(bandMax),
-            maxTargetDistHardM: Math.round(maxTargetDistHard),
-            maxTargetDistSoftM: Math.round(maxTargetDistSoft),
-            poolSize: candidatePool.length,
-            storeSlot,
-            hasStoreCandidates: storePool.length > 0,
-          });
+          logDebug({ stage: 'pick_failed', k, bearing: bearings[k], requested: searchTypes });
           return null;
         }
 
@@ -616,44 +396,27 @@ app.post('/api/course/recommend', async (req, res) => {
         waypointTypes.push(picked.type);
       }
 
-      // ✅ toilet 최소 1개 보장
+      // 최종 검증: 화장실 1개는 무조건 있어야 함
       if (!waypoints.some((w) => w.type === 'toilet')) {
-        logDebug({ stage: 'no_toilet', offsetDeg, attemptIndex, waypointTypes });
         return null;
       }
 
-      // ✅ (수정) 실제 ORS 호출 시에만 카운트 증가
       const geojson = await orsLoopGeojsonCounted(startPt, waypoints);
       const distM = getOrsDistanceM(geojson);
+      if (!Number.isFinite(distM)) return null;
 
-      if (!Number.isFinite(distM)) {
-        logDebug({ stage: 'dist_parse_failed', offsetDeg, attemptIndex });
-        return null;
-      }
-
-      return {
-        waypoints,
-        geojson,
-        distM,
-        waypointTypes,
-        bandMin,
-        bandMax,
-        maxTargetDistHard,
-        maxTargetDistSoft,
-        storeSlot,
-      };
+      return { waypoints, geojson, distM, waypointTypes };
     }
 
+    // 메인 루프 (offset -> attempt)
     for (let oi = 0; oi < offsets.length; oi++) {
-      if (courses.length >= 3) break;
-      if (orsCallsUsed >= maxCalls) break;
+      if (courses.length >= 3 || orsCallsUsed >= maxCalls) break;
 
       const offset = offsets[oi];
       let dStarLocal = dStarInit;
 
       for (let attempt = 0; attempt < attemptsPerOffset; attempt++) {
-        if (courses.length >= 3) break;
-        if (orsCallsUsed >= maxCalls) break;
+        if (courses.length >= 3 || orsCallsUsed >= maxCalls) break;
 
         let built = null;
         try {
@@ -668,38 +431,9 @@ app.post('/api/course/recommend', async (req, res) => {
           continue;
         }
 
-        const {
-          waypoints,
-          geojson,
-          distM,
-          waypointTypes,
-          bandMin,
-          bandMax,
-          maxTargetDistHard,
-          maxTargetDistSoft,
-          storeSlot,
-        } = built;
-
+        const { waypoints, geojson, distM, waypointTypes } = built;
         const hit = distM >= minL && distM <= maxL;
         const errAbs = Math.abs(distM - L);
-
-        logDebug({
-          stage: 'built',
-          offsetDeg: offset,
-          attempt,
-          dStarUsedM: Math.round(dStarLocal),
-          distM: Math.round(distM),
-          hit,
-          minL: Math.round(minL),
-          maxL: Math.round(maxL),
-          waypointTypes,
-          storeSlot,
-          bandMinM: Math.round(bandMin),
-          bandMaxM: Math.round(bandMax),
-          maxTargetDistHardM: Math.round(maxTargetDistHard),
-          maxTargetDistSoftM: Math.round(maxTargetDistSoft),
-          hasStoreCandidates: storePool.length > 0,
-        });
 
         if (hit) {
           waypoints.forEach((w) => usedGlobal.add(w.id));
@@ -707,127 +441,57 @@ app.post('/api/course/recommend', async (req, res) => {
             meta: {
               index: courses.length + 1,
               targetKm: km,
-              targetDistanceM: Math.round(L),
               totalDistanceM: Math.round(distM),
-              toleranceRatio: tol,
-              toleranceHit: true,
-              radiusM: r,
-              orsCallsUsed, // ✅ 실제 ORS 호출 수
-              offsetDeg: offset,
-              attempt,
-              dStarUsedM: Math.round(dStarLocal),
               waypointTypes,
-              storeRequested,
-              storeCandidatesProvided: storePool.length,
-              storeSlot,
-              toiletRequiredAtLeastOne: true,
-              minStartDistM: Math.round(minStartDistM),
-              bandMinM: Math.round(bandMin),
-              bandMaxM: Math.round(bandMax),
             },
             waypoints,
             geojson,
           });
-          break;
+          break; // 해당 offset 성공시 다음 offset으로
         } else {
           bestNearMiss.push({
             errAbs,
             payload: {
-              meta: {
-                index: -1,
-                targetKm: km,
-                targetDistanceM: Math.round(L),
-                totalDistanceM: Math.round(distM),
-                toleranceRatio: tol,
-                toleranceHit: false,
-                radiusM: r,
-                orsCallsUsed, // ✅ 실제 ORS 호출 수
-                offsetDeg: offset,
-                attempt,
-                dStarUsedM: Math.round(dStarLocal),
-                waypointTypes,
-                storeRequested,
-                storeCandidatesProvided: storePool.length,
-                storeSlot,
-                toiletRequiredAtLeastOne: true,
-                minStartDistM: Math.round(minStartDistM),
-                bandMinM: Math.round(bandMin),
-                bandMaxM: Math.round(bandMax),
-              },
+              meta: { index: -1, targetKm: km, totalDistanceM: Math.round(distM), waypointTypes },
               waypoints,
               geojson,
             },
           });
-
-          // ✅ 거리 보정(안정적으로 수렴)
+          // 거리 보정
           const scale = Math.sqrt(L / distM);
-          const clamped = Math.max(0.8, Math.min(1.25, scale));
-          dStarLocal = dStarLocal * clamped;
+          dStarLocal = dStarLocal * Math.max(0.8, Math.min(1.25, scale));
         }
       }
     }
 
+    // 결과 부족 시 NearMiss 채우기
     if (courses.length < 3 && bestNearMiss.length) {
       bestNearMiss.sort((a, b) => a.errAbs - b.errAbs);
       for (const item of bestNearMiss) {
         if (courses.length >= 3) break;
         if (item.errAbs > L * nearMissMaxRatio) continue;
+        if (item.payload.waypoints.some((w) => usedGlobal.has(w.id))) continue;
 
-        const payload = item.payload;
-        const overlap = payload.waypoints.some((w) => usedGlobal.has(w.id));
-        if (overlap) continue;
-
-        payload.waypoints.forEach((w) => usedGlobal.add(w.id));
-        payload.meta.index = courses.length + 1;
-        courses.push(payload);
+        item.payload.waypoints.forEach((w) => usedGlobal.add(w.id));
+        item.payload.meta.index = courses.length + 1;
+        courses.push(item.payload);
       }
     }
 
     return res.json({
       ok: true,
       version: VERSION,
-      requested: 3,
       returned: courses.length,
-      meta: {
-        targetKm: km,
-        targetDistanceM: Math.round(L),
-        toleranceRatio: tol,
-        radiusM: r,
-        orsCallsUsed,
-        maxOrsCalls: maxCalls,
-        include: {
-          toiletRequiredAtLeastOne: true,
-          storeRequested,
-          storeCandidatesProvided: storePool.length,
-          storeSlotBehavior: '1 slot tries store first; fallback to toilet/bin',
-        },
-        minStartDistM: Math.round(minStartDistM),
-        nearMissMaxRatio,
-        poolCounts: {
-          bins: bins.length,
-          toilets: toilets.length,
-          stores: storePool.length,
-          total: POOL.length,
-        },
-        service_area: SERVICE_AREA || null,
-      },
+      meta: { targetKm: km, orsCallsUsed },
       courses,
       debug: DEBUG ? debugLog : undefined,
     });
   } catch (err) {
     const status = err.response?.status || 500;
-    const data = err.response?.data || null;
-
-    return res.status(status).json({
-      error: 'COURSE_RECOMMEND_FAILED',
-      status,
-      data,
-      message: err.message,
-    });
+    return res.status(status).json({ error: 'COURSE_RECOMMEND_FAILED', message: err.message });
   }
 });
 
 app.listen(PORT, () => {
   console.log(`서버 실행 완료: http://localhost:${PORT}`);
-  console.log('[ORS] key length:', getOrsKey()?.length || 0);
 });
