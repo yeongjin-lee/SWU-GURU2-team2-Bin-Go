@@ -100,7 +100,7 @@ Bin-Go 서버는 단순한 경로 탐색이 아닌, 러닝 목적에 맞는 순�
 
 3.  **Client Setup**
     * Android Studio에서 프로젝트 열기 (`Open Existing Project`)
-    * `local.properties` 또는 `AndroidManifest.xml`에 Kakao Map API Key 설정
+    * `local.properties`에 Kakao Map API Key 설정
     * Gradle Sync 후 에뮬레이터 또는 실기기에서 실행 (`Run 'app'`)
 
 ## 📱 주요 화면 및 기능
