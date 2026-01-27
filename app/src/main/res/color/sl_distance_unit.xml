@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 러닝 설정 화면에서 거리 단위 버튼의 텍스트 색상을 선택 여부에 따라 제어 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true" android:color="@color/primary" />
+    <item android:color="@color/select_off" />
+</selector>

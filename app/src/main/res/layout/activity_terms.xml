@@ -1,0 +1,133 @@
+<!-- 이용약관 화면  -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:layout_marginTop="10dp"
+    android:padding="20dp"
+    android:fitsSystemWindows="true">
+
+    <!-- 아용약관 타이틀  -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:text="서비스 이용약관 및 개인정보처리방침"
+        android:textSize="22sp"
+        android:layout_marginVertical="5dp"
+        android:textColor="@color/text_primary"
+        android:textStyle="bold" />
+
+    <!-- 이용약관 내용 스크롤뷰  -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginVertical="15dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="16dp"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:textStyle="bold"
+                android:layout_marginTop="15dp"
+                android:textSize="19dp"
+                android:text="제 1조 (목적)" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="10dp"
+                android:textSize="16dp"
+                android:text="본 약관은 빈고 앱이 제공하는 러닝 트래킹 서비스의 이용 조건을 규정합니다." />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="15dp"
+                android:textStyle="bold"
+                android:textSize="19dp"
+                android:text="제 2조 (개인정보 보호)" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="10dp"
+                android:textSize="16dp"
+                android:text="사용자의 위치 정보는 러닝 기록 측정을 위해서만 사용되며 외부에 무단 제공되지 않습니다." />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="15dp"
+                android:textStyle="bold"
+                android:textSize="19dp"
+                android:text="제 3조 (서비스의 제공 및 변경)" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="10dp"
+                android:textSize="16dp"
+                android:text="본 서비스는 유지보수 및 기술적 필요에 따라 서비스의 일부 또는 전부를 수정하거나 중단할 수 있습니다." />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="15dp"
+                android:textStyle="bold"
+                android:textSize="19dp"
+                android:text="제 4조 (책임의 제한)" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="10dp"
+                android:textSize="16dp"
+                android:text="1. 회사는 천재지변 또는 이에 준하는 불가항력으로 인하여 서비스를 제공할 수 없는 경우에는 서비스 제공에 관한 책임이 면제됩니다." />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="5dp"
+                android:textSize="16dp"
+                android:text="2. 사용자가 본인의 기기 관리 부주의로 인해 발생한 손해에 대해서는 회사가 책임을 지지 않습니다." />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="15dp"
+                android:textStyle="bold"
+                android:textSize="19dp"
+                android:text="제 5조 (게시물의 저작권)" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="10dp"
+                android:textSize="16dp"
+                android:text="사용자가 앱 내에 게시하거나 등록한 기록 및 자료에 대한 권리와 책임은 사용자 본인에게 있으며, 회사는 건전한 서비스 운영을 위해 관련 법령을 준수합니다." />
+
+        </LinearLayout>
+
+
+    </ScrollView>
+
+    <!-- 닫기 버튼  -->
+    <Button
+        android:id="@+id/btn_close"
+        android:layout_width="350dp"
+        android:layout_height="65dp"
+        android:layout_marginTop="5dp"
+        android:layout_gravity="center_horizontal"
+        android:text="닫기"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:backgroundTint="@color/primary"
+        android:textColor="@color/white"
+        android:elevation="4dp" />
+</LinearLayout>

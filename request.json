@@ -1,0 +1,15 @@
+﻿{
+  "start": {
+    "lat": 37.5665,
+    "lng": 126.9780
+  },
+  "targetKm": 5,
+  "include": {
+    "toilet": true,
+    "store": true
+  },
+  "toleranceRatio": 0.2,
+  "radiusM": 4500,
+  "maxOrsCalls": 8,
+  "debug": true
+}

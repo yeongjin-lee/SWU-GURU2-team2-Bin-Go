@@ -1,0 +1,314 @@
+<!-- 러닝 설정 페이지 레이아웃  -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:fillViewport="true">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="24dp">
+
+        <!-- 사용자 아이콘  -->
+        <ImageView
+            android:id="@+id/iv_profile"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_user"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_greeting"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="오늘도 힘차게!"
+            android:textColor="@color/text_dark"
+            app:layout_constraintBottom_toTopOf="@id/tv_title"
+            app:layout_constraintStart_toEndOf="@id/iv_profile"
+            app:layout_constraintTop_toTopOf="@id/iv_profile" />
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="러닝 설정"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_dark"
+            app:layout_constraintBottom_toBottomOf="@id/iv_profile"
+            app:layout_constraintStart_toStartOf="@id/tv_greeting"
+            app:layout_constraintTop_toBottomOf="@id/tv_greeting" />
+
+        <TextView
+            android:id="@+id/label_filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="35dp"
+            android:drawableStart="@drawable/ic_facility"
+            android:drawablePadding="8dp"
+            android:text="주변 시설 필터"
+            android:textStyle="bold"
+            android:textColor="@color/text_dark"
+            android:textSize="18dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/iv_profile" />
+
+        <LinearLayout
+            android:id="@+id/layout_filters"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal"
+            app:layout_constraintTop_toBottomOf="@id/label_filter"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <!-- 화장실 선택 버튼  -->
+            <LinearLayout
+                android:id="@+id/btn_toilet"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/sl_facility_bg"
+                android:gravity="center"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="10dp"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="15dp"
+                    android:layout_height="25dp"
+                    android:src="@drawable/ic_toilet"
+                    android:duplicateParentState="true"
+                    app:tint="@color/sl_facility_icon" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="화장실"
+                    android:duplicateParentState="true"
+                    android:textColor="@color/sl_facility_content"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 쓰레기통 -->
+            <!--원래 쓰레기통만 기본 옵션이었기 때문에 쓰레기통만 버튼이 아닙니다  -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/ic_facility_on"
+                android:gravity="center"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="10dp"
+                android:layout_marginEnd="8dp">
+                <ImageView
+                    android:layout_width="15dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_bin" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="쓰레기통"
+                    android:textColor="@color/white"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+
+
+            <!-- 편의점 버튼  -->
+            <LinearLayout
+                android:id="@+id/btn_convenience"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/sl_facility_bg"
+                android:gravity="center"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="10dp"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageView
+                    android:layout_width="15dp"
+                    android:layout_height="25dp"
+                    android:src="@drawable/ic_store"
+                    android:duplicateParentState="true"
+                    app:tint="@color/sl_facility_icon" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="편의점"
+                    android:duplicateParentState="true"
+                    android:textColor="@color/sl_facility_content"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/label_distance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:drawableStart="@drawable/ic_flag"
+            android:drawablePadding="8dp"
+            android:text="목표 거리 설정"
+            android:textStyle="bold"
+            android:textColor="@color/text_dark"
+            android:textSize="18dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/layout_filters" />
+
+        <!-- 목표 거리 설정 버튼들 -->
+        <GridLayout
+            android:id="@+id/grid_distance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:columnCount="2"
+            app:layout_constraintTop_toBottomOf="@id/label_distance"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <!-- 3km 버튼  -->
+            <LinearLayout
+                android:id="@+id/btn_dist_3"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:layout_margin="4dp"
+                android:background="@drawable/sl_distance_bg"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:clickable="true"
+                android:focusable="true">
+                <TextView
+                    android:id="@+id/tv_val_3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="3.0"
+                    android:textSize="22sp"
+                    android:duplicateParentState="true"
+                    android:textStyle="bold"
+                    android:textColor="@color/black" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="km"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:duplicateParentState="true"
+                    android:textColor="@color/sl_distance_unit" />
+            </LinearLayout>
+
+            <!--  5km 버튼 -->
+            <LinearLayout
+                android:id="@+id/btn_dist_5"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:layout_margin="4dp"
+                android:background="@drawable/sl_distance_bg"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:clickable="true"
+                android:focusable="true">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="5.0"
+                    android:textSize="22sp"
+                    android:duplicateParentState="true"
+                    android:textStyle="bold"
+                    android:textColor="@color/black" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="km"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:duplicateParentState="true"
+                    android:textColor="@color/sl_distance_unit" />
+            </LinearLayout>
+
+            <!-- 7km 버튼  -->
+            <LinearLayout
+                android:id="@+id/btn_dist_7"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:layout_margin="4dp"
+                android:background="@drawable/sl_distance_bg"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:clickable="true"
+                android:focusable="true">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="7.0"
+                    android:textSize="22sp"
+                    android:duplicateParentState="true"
+                    android:textStyle="bold"
+                    android:textColor="@color/black" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="km"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:duplicateParentState="true"
+                    android:textColor="@color/sl_distance_unit" />
+            </LinearLayout>
+
+            <!-- 10km 버튼  -->
+            <LinearLayout
+                android:id="@+id/btn_dist_10"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:layout_margin="4dp"
+                android:background="@drawable/sl_distance_bg"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="20dp"
+                android:clickable="true"
+                android:focusable="true">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="10.0"
+                    android:textSize="22sp"
+                    android:duplicateParentState="true"
+                    android:textStyle="bold"
+                    android:textColor="@color/black" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="km"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:duplicateParentState="true"
+                    android:textColor="@color/sl_distance_unit" />
+            </LinearLayout>
+        </GridLayout>
+
+        <!-- 추천 루트 선택하기 버튼  -->
+        <Button
+            android:id="@+id/btn_recommend_route"
+            android:layout_width="match_parent"
+            android:layout_height="65dp"
+            android:layout_marginTop="32dp"
+            android:backgroundTint="#5296B1"
+            android:text="▶  추천 루트 선택하기"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/grid_distance" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

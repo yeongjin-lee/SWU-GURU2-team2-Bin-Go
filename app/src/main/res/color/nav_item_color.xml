@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 하단 네비게이션 메뉴의 아이콘과 텍스트 색상을 선택 상태에 따라 변경 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/primary" android:state_checked="true" />
+    <item android:color="@color/select_off" android:state_checked="false" />
+</selector>

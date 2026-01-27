@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 앱 전체의 화면 이동(Navigation) 경로와 각 화면 간의 연결을 정의하는 핵심 설정 파일-->
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/homeFragment">
+
+    <!-- Home Fragment -->
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.project.bingo.ui.home.HomeFragment"
+        android:label="Home">
+        <action
+            android:id="@+id/action_home_to_runningSetting"
+            app:destination="@id/runningSettingFragment" />
+    </fragment>
+
+
+
+    <!-- Running Flow -->
+    <fragment
+        android:id="@+id/runningSettingFragment"
+        android:name="com.project.bingo.ui.running.RunningSettingFragment"
+        android:label="Running Setting">
+        <action
+            android:id="@+id/action_runningSetting_to_routeSelect"
+            app:destination="@id/routeSelectFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/routeSelectFragment"
+        android:name="com.project.bingo.ui.running.RouteSelectFragment"
+        android:label="Route Select">
+        <action
+            android:id="@+id/action_routeSelect_to_running"
+            app:destination="@id/runningFragment" />
+        <action
+            android:id="@+id/action_routeSelect_to_home"
+            app:destination="@id/homeFragment"
+            app:popUpTo="@id/homeFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/runningFragment"
+        android:name="com.project.bingo.ui.running.RunningFragment"
+        android:label="Running">
+        <action
+            android:id="@+id/action_running_to_result"
+            app:destination="@id/runningResultFragment"
+            app:popUpTo="@id/runningFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/runningResultFragment"
+        android:name="com.project.bingo.ui.running.RunningResultFragment"
+        android:label="Running Result">
+        <action
+            android:id="@+id/action_result_to_home"
+            app:destination="@id/homeFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- Calendar Fragment -->
+    <fragment
+        android:id="@+id/calendarFragment"
+        android:name="com.project.bingo.ui.calendar.CalendarFragment"
+        android:label="Calendar">
+        <action
+        android:id="@+id/action_calendar_to_detail"
+        app:destination="@id/calendarDetailFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/calendarDetailFragment"
+        android:name="com.project.bingo.ui.calendar.CalendarDetailFragment"
+        android:label="CalendarDetailFragment" />
+
+    <!-- MyPage Fragment -->
+    <fragment
+        android:id="@+id/myPageFragment"
+        android:name="com.project.bingo.ui.mypage.MyPageFragment"
+        android:label="My Page" />
+
+</navigation>

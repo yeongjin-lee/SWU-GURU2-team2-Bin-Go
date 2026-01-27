@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 러닝 스플래시 화면 레이아웃  -->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/skyblue_background">
+
+    <!-- 러닝 아이콘  -->
+    <ImageView
+        android:id="@+id/iv_running_icon"
+        android:layout_width="110dp"
+        android:layout_height="140dp"
+        android:layout_centerHorizontal="true"
+        app:layout_constraintVertical_bias="0.4"
+        android:src="@drawable/ic_running_splash"
+        app:layout_constraintVertical_chainStyle="packed"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/tv_loading_title"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_loading_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="25dp"
+        android:text="사용자 맞춤 추천 루트 생성 중"
+        android:textColor="@color/black"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toBottomOf="@+id/iv_running_icon"
+        app:layout_constraintBottom_toTopOf="@+id/tv_loading_description1"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_loading_description1"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_marginTop="18dp"
+        android:gravity="center"
+
+        android:text="경로 상 나타나는 편의시설의 위치는 공공데이터 기반으로 지도에 표시되며"
+        android:textColor="@color/text_dark"
+        android:textSize="12sp"
+        app:layout_constraintTop_toBottomOf="@+id/tv_loading_title"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/tv_loading_description2"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_loading_description2"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        app:layout_constraintVertical_bias="0"
+        android:gravity="center"
+        android:textStyle="bold"
+        android:text="실제 위치와 정확히 일치하지 않을 수 있습니다."
+        android:textColor="@color/text_dark"
+        android:textSize="12sp"
+        app:layout_constraintTop_toBottomOf="@+id/tv_loading_description1"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

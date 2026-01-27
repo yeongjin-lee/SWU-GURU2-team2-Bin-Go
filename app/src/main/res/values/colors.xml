@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="gray">#717171</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Primary Colors -->
+    <color name="primary">#2596B2</color>
+    <color name="primary_light">#59AEC4</color>
+
+    <!-- Secondary Colors -->
+    <color name="secondary">#FF9800</color>
+    <color name="secondary_dark">#F57C00</color>
+    <color name="secondary_light">#FFE0B2</color>
+
+
+
+
+
+    <!-- Text Colors -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#161D31</color>
+    <color name="text_dark">#0F172A</color>
+    <color name="text_light">#646464</color>
+    <color name="text_hint">#9E9E9E</color>
+    <color name="select_off">#C6C6C6</color>
+
+    <!-- Background Colors -->
+    <color name="background">#FAFAFA</color>
+    <color name="runningsplash_background">#F0F7F9</color>
+    <color name="skyblue_background">#F0F7F9</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="card_background">#D9ECF0</color>
+
+    <!-- Error Colors -->
+    <color name="error">#B00020</color>
+
+    <!-- Divider -->
+    <color name="divider">#E0E0E0</color>
+</resources>
