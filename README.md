@@ -2,6 +2,13 @@
 > **Heuristic Round-Trip Routing System based on Urban POI Data**  
 > *Refactored repository focusing on Backend Logic & Algorithm Design*
 
+## Demo (Algorithm Output)
+<img src="./assets/demo_routes.png" width="420">
+
+*Example outputs of the sector-based routing algorithm.
+Routes are generated as round-trip courses with distance constraints and
+facility-aware waypoints under real-world POI sparsity.*
+
 ---
 
 ## 📌 Project Overview & Context
